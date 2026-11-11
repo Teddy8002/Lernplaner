@@ -104,6 +104,21 @@ html,body{overflow-x:hidden}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-weight:500;font-size:13.5px}
 .startbox{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13.5px}
 .startbox input{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:6px 8px;font-family:var(--f-mono)}
+.datebtn{position:relative;overflow:hidden}
+.datebtn input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;border:0;padding:0}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-bottom:12px}
+.wd{display:flex;flex-direction:column;align-items:center;gap:1px;padding:7px 2px 6px;border-radius:10px;background:var(--surface);border:1px solid var(--line);min-width:0}
+.wd small{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.wd b{font-family:var(--f-mono);font-size:16px;font-weight:600;line-height:1.2}
+.wd span{font-family:var(--f-mono);font-size:11px;color:var(--muted);min-height:14px;white-space:nowrap}
+.wd.today b{color:var(--accent)}
+.wd.past{opacity:.6}
+.wd.full span{color:var(--good);font-weight:600}
+.wd.on{background:var(--accent);border-color:var(--accent);opacity:1}
+.wd.on small,.wd.on b,.wd.on span{color:var(--accent-ink)}
+.weeknav{display:flex;align-items:center;justify-content:space-between;margin:-4px 0 6px;font-size:12.5px;color:var(--muted)}
+.weeknav button{color:var(--accent);font-weight:500;padding:4px 2px}
+.daychips button small{opacity:.75;margin-left:4px;font-family:var(--f-mono);font-size:11.5px}
 .back{display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-weight:500;margin-bottom:8px}
 @media (min-width:900px){.back{display:none}}
 
@@ -243,6 +258,10 @@ html,body{overflow-x:hidden}
   .iconbtn{width:32px;height:32px;border-radius:9px}
   .startbox{width:100%;font-size:13px}
   .startbox input{padding:4px 8px}
+  .week{gap:4px}
+  .wd{padding:6px 1px 5px}
+  .wd b{font-size:14.5px}
+  .wd span{font-size:10px}
   .summary{padding:10px 12px;gap:6px}
   .summary div b{font-size:16px}
   .row{grid-template-columns:14px 44px 26px minmax(0,1fr) 34px;gap:6px;padding:9px 6px 9px 2px}
@@ -351,6 +370,7 @@ const ICON={
   dots:'<svg viewBox="0 0 20 20" fill="currentColor"><circle cx="4.5" cy="10" r="1.7"/><circle cx="10" cy="10" r="1.7"/><circle cx="15.5" cy="10" r="1.7"/></svg>',
   today:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2.5h6"/></svg>',
   folder:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4.4l2 2h8.6A1.5 1.5 0 0 1 21 9.5v8A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>',
+  cal:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8.5h14M7 2.8v3.4M13 2.8v3.4"/></svg>',
   tpl:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>'
 };
 
@@ -570,7 +590,7 @@ function render(){
   $("#side").innerHTML=`
     <div class="brand"><i></i>Lernplaner</div>
     <nav>
-      <a href="#heute" class="${r.view==="today"?"on":""}">${ICON.today.replace("<svg",'<svg width="18" height="18"')}Heute<span class="n">${todayUndone||""}</span></a>
+      <a href="#heute" class="${r.view==="today"?"on":""}">${ICON.today.replace("<svg",'<svg width="18" height="18"')}Tagesplan<span class="n">${todayUndone||""}</span></a>
       <a href="#ordner" class="${r.view==="folders"?"on":""}">${ICON.folder.replace("<svg",'<svg width="18" height="18"')}Übersicht</a>
       <a href="#vorlagen" class="${r.view==="templates"?"on":""}">${ICON.tpl.replace("<svg",'<svg width="18" height="18"')}Vorlagen</a>
     </nav>
@@ -578,7 +598,7 @@ function render(){
     <nav>${S.meta.folders.map(f=>`<a href="#f-${esc(f.id)}" class="${r.fid===f.id?"on":""}" style="--c:${esc(f.color)}"><i class="dot"></i>${esc(f.name)}<span class="n">${openCount(f.id)||""}</span></a>`).join("")}</nav>
     <button class="sync syncbtn" type="button"><b></b> </button>`;
   $("#tabbar").innerHTML=`
-    <a href="#heute" class="${r.view==="today"?"on":""}">${ICON.today}Heute</a>
+    <a href="#heute" class="${r.view==="today"?"on":""}">${ICON.today}Plan</a>
     <a href="#ordner" class="${r.view==="folders"||r.view==="folder"?"on":""}">${ICON.folder}Ordner</a>
     <a href="#vorlagen" class="${r.view==="templates"?"on":""}">${ICON.tpl}Vorlagen</a>`;
   const v=$("#view");
@@ -595,6 +615,34 @@ function dayLabel(k){
   const t=todayKey();
   if(k===t) return "Heute"; if(k===addDays(t,1)) return "Morgen"; if(k===addDays(t,-1)) return "Gestern";
   return keyDate(k).toLocaleDateString("de-CH",{weekday:"long"});
+}
+function dayShort(k){
+  const t=todayKey();
+  if(k===t) return "heute"; if(k===addDays(t,1)) return "morgen";
+  return keyDate(k).toLocaleDateString("de-CH",{weekday:"short",day:"numeric",month:"numeric"});
+}
+function fmtShort(m){if(!m) return ""; if(m<60) return m+"′"; return (Math.round(m/30)/2).toLocaleString("de-CH")+" h";}
+function dayStats(k){
+  const d=S.plans.days[k]; if(!d) return {min:0,n:0,done:0};
+  const w=d.items.filter(i=>!i.pause);
+  return {min:w.reduce((a,i)=>a+i.dur,0),n:w.length,done:w.filter(i=>i.done).length};
+}
+function weekStrip(k){
+  const t=todayKey(), dow=(keyDate(k).getDay()+6)%7, mon=addDays(k,-dow);
+  const keys=[0,1,2,3,4,5,6].map(i=>addDays(mon,i));
+  const kw=(()=>{const d=keyDate(mon);d.setDate(d.getDate()+3);const y=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-y)/864e5-3+((y.getDay()+6)%7))/7);})();
+  const wkMin=keys.reduce((a,x)=>a+dayStats(x).min,0);
+  return `<div class="weeknav"><button data-act="prevWeek">‹ Vorwoche</button><span>KW ${kw}${wkMin?` · ${fmtDur(wkMin)} geplant`:""}</span><button data-act="nextWeek">Nächste Woche ›</button></div>
+  <div class="week" role="group" aria-label="Woche">${keys.map(x=>{
+    const st=dayStats(x), cls=["wd"]; if(x===k)cls.push("on"); if(x===t)cls.push("today"); if(x<t)cls.push("past"); if(st.n&&st.done===st.n)cls.push("full");
+    const d=keyDate(x);
+    return `<button class="${cls.join(" ")}" data-act="pickDay" data-k="${x}" aria-label="${d.toLocaleDateString("de-CH",{weekday:"long",day:"numeric",month:"long"})}${st.min?", "+fmtDur(st.min)+" geplant":""}">
+      <small>${d.toLocaleDateString("de-CH",{weekday:"short"}).replace(".","")}</small><b>${d.getDate()}</b><span>${st.n&&st.done===st.n?"✓":fmtShort(st.min)}</span></button>`;
+  }).join("")}</div>`;
+}
+function nextPlanned(taskId){
+  const t=todayKey();
+  return Object.keys(S.plans.days).filter(k=>k>=t).sort().find(k=>S.plans.days[k].items.some(i=>i.taskId===taskId&&!i.done));
 }
 function viewToday(){
   const k=ui.day, isToday=k===todayKey(), day=dayOf(k), rows=sched(k), r=run();
@@ -627,6 +675,7 @@ function viewToday(){
         <button class="iconbtn" data-act="prevDay" aria-label="Vorheriger Tag">${ICON.left}</button>
         <div><h1>${dayLabel(k)}</h1></div>
         <button class="iconbtn" data-act="nextDay" aria-label="Nächster Tag">${ICON.right}</button>
+        <span class="iconbtn datebtn" title="Datum wählen">${ICON.cal}<input type="date" id="dayPick" value="${k}" aria-label="Datum wählen"></span>
         ${isToday?"":`<button class="pill" data-act="goToday">Zu heute</button>`}
       </div>
       <p class="sub">${keyDate(k).toLocaleDateString("de-CH",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
@@ -634,6 +683,7 @@ function viewToday(){
     <div class="startbox"><label for="dayStart">Tagesstart</label><input type="time" id="dayStart" value="${esc(day.start)}"></div>
   </header>
   <button class="sync syncbtn mobile-sync" type="button"><b></b> </button>
+  ${weekStrip(k)}
   <section class="summary" aria-label="Zusammenfassung">
     <div><small>Geplant</small><b>${fmtDur(planned)}</b></div>
     <div><small>Erledigt</small><b>${doneRows.length}/${work.length}</b></div>
@@ -646,7 +696,7 @@ function viewToday(){
     <button class="btn pri" data-act="addPlan">+ Aufgabe einplanen</button>
     <button class="btn" data-act="addPause">+ Pause</button>
   </div>
-  ${learned?`<p class="note" style="margin-top:14px">Heute gelernt: <b class="mono">${fmtDur(learned)}</b></p>`:""}`;
+  ${learned?`<p class="note" style="margin-top:14px">${isToday?"Heute":"An diesem Tag"} gelernt: <b class="mono">${fmtDur(learned)}</b></p>`:""}`;
 }
 function rowHTML(x){
   const it=x.it, f=folder(it.folderId), c=it.pause?"var(--line)":fcolor(it.folderId);
@@ -707,13 +757,13 @@ function dueChip(due){
 }
 function taskHTML(t,handle,showFolder){
   const f=folder(t.folderId);
-  const inPlan=dayOf(todayKey()).items.some(i=>i.taskId===t.id&&!i.done);
+  const inPlan=t.done?null:nextPlanned(t.id);
   return `<li class="row task${handle?"":" manual-off"}${t.done?" done":""}" data-id="${t.id}" style="--c:${f?esc(f.color):"var(--line)"}">
     ${handle?`<span class="handle" data-handle aria-label="Verschieben">${ICON.grip}</span>`:""}
     <button class="chk" data-act="tToggle" aria-label="${t.done?"Als offen markieren":"Erledigt"}">${ICON.check}</button>
     <div class="body" data-act="tEdit"><div class="title">${esc(t.title)}</div>
-      <div class="meta">${showFolder&&f?esc(f.name)+" ·":""}<span class="chip p${t.prio||2}">${PRIO[t.prio||2]}</span>${dueChip(t.done?null:t.due)}${inPlan?'<span class="chip inplan">im Tagesplan</span>':""}${t.notes?`<span>${esc(t.notes.slice(0,60))}${t.notes.length>60?"…":""}</span>`:""}</div></div>
-    ${t.done?"<span></span>":`<button class="today-btn" data-act="tToday">→ Heute</button>`}
+      <div class="meta">${showFolder&&f?esc(f.name)+" ·":""}<span class="chip p${t.prio||2}">${PRIO[t.prio||2]}</span>${dueChip(t.done?null:t.due)}${inPlan?`<span class="chip inplan">geplant ${esc(dayShort(inPlan))}</span>`:""}${t.notes?`<span>${esc(t.notes.slice(0,60))}${t.notes.length>60?"…":""}</span>`:""}</div></div>
+    ${t.done?"<span></span>":`<button class="today-btn" data-act="tToday">→ Einplanen</button>`}
   </li>`;
 }
 function viewFolder(fid){
@@ -798,6 +848,9 @@ const ACT={
   prevDay(){ui.day=addDays(ui.day,-1);render();},
   nextDay(){ui.day=addDays(ui.day,1);render();},
   goToday(){ui.day=todayKey();render();},
+  pickDay(_,el){ui.day=el.dataset.k;render();},
+  prevWeek(){ui.day=addDays(ui.day,-7);render();},
+  nextWeek(){ui.day=addDays(ui.day,7);render();},
   toggle(id){
     const it=planItem(id); if(!it) return;
     it.done=!it.done;
@@ -836,10 +889,11 @@ const ACT={
   tEdit(id){openTaskSheet(id);},
   tToday(id){
     const t=S.tasks.list.find(x=>x.id===id); if(!t) return;
-    openDurSheet(`„${t.title}“ einplanen`,30,dur=>{
-      addToPlan(ui.day,{title:t.title,folderId:t.folderId,dur,taskId:t.id});
-      render(); toast("Zu "+dayLabel(ui.day).toLowerCase()+" hinzugefügt");
-    });
+    const def=ui.day>=todayKey()?ui.day:todayKey();
+    openDurSheet(`„${t.title}“ einplanen`,30,(dur,k)=>{
+      addToPlan(k,{title:t.title,folderId:t.folderId,dur,taskId:t.id});
+      render(); toast("Für "+dayShort(k)+" eingeplant");
+    },def);
   },
   sort(_,el){ui.sort=el.dataset.s;render();},
   toggleDone(){ui.showDone=!ui.showDone;render();},
@@ -874,7 +928,9 @@ $("#view").addEventListener("click",e=>{
   const holder=a.closest("[data-id]"); const fn=ACT[a.dataset.act];
   if(fn){e.preventDefault();fn(holder?holder.dataset.id:null,a,e);}
 });
+$("#view").addEventListener("click",e=>{if(e.target.id==="dayPick"){try{e.target.showPicker();}catch(_){}}});
 $("#view").addEventListener("change",e=>{
+  if(e.target.id==="dayPick"&&e.target.value){ui.day=e.target.value;render();return;}
   if(e.target.id==="dayStart"&&e.target.value){const d=dayOf(ui.day,true);d.start=e.target.value;if(ui.day===todayKey()){S.meta.settings.dayStart=e.target.value;save("meta");}save("plans");render();}
 });
 $("#view").addEventListener("submit",e=>{
@@ -914,9 +970,22 @@ function confirmSheet(msg,label,fn){
   openSheet(msg,`<div class="sh-row"><button class="btn" data-close>Abbrechen</button><button class="btn pri" id="cfOk" style="background:var(--bad);border-color:var(--bad);color:#fff">${esc(label)}</button></div>`,
     sh=>{$$("[data-close]",sh).forEach(b=>b.addEventListener("click",closeSheet));$("#cfOk",sh).addEventListener("click",()=>{closeSheet();fn();});});
 }
-function openDurSheet(title,val,fn){
-  openSheet(title,`<div class="fl"><label>Dauer</label>${durPicker("dsDur",val)}</div><button class="btn pri block" id="dsOk">Einplanen</button>`,
-    sh=>{const get=wireDur(sh,"dsDur");$("#dsOk",sh).addEventListener("click",()=>{const d=get();closeSheet();fn(d);});});
+/* Tag-Auswahl: Chips für die nächsten 7 Tage + freies Datum */
+function dayPicker(id,val){
+  const t=todayKey(), keys=[0,1,2,3,4,5,6].map(i=>addDays(t,i));
+  return `<div class="chips daychips" data-daychips="${id}">${keys.map(x=>{const m=dayStats(x).min;return `<button type="button" data-k="${x}" class="${x===val?"on":""}">${x===t?"Heute":x===addDays(t,1)?"Morgen":keyDate(x).toLocaleDateString("de-CH",{weekday:"short",day:"numeric",month:"numeric"})}${m?`<small>${fmtShort(m)}</small>`:""}</button>`;}).join("")}</div>
+  <input class="field" type="date" id="${id}" value="${val}" style="margin-top:8px" aria-label="Datum">`;
+}
+function wireDay(root,id){
+  const inp=$("#"+id,root), chips=$(`[data-daychips="${id}"]`,root);
+  const sync=()=>$$("button",chips).forEach(b=>b.classList.toggle("on",b.dataset.k===inp.value));
+  chips.addEventListener("click",e=>{const b=e.target.closest("[data-k]");if(!b)return;inp.value=b.dataset.k;sync();});
+  inp.addEventListener("input",sync); inp.addEventListener("change",sync);
+  return ()=>inp.value||todayKey();
+}
+function openDurSheet(title,val,fn,dayVal){
+  openSheet(title,`${dayVal?`<div class="fl"><label>Tag</label>${dayPicker("dsDay",dayVal)}</div>`:""}<div class="fl"><label>Dauer</label>${durPicker("dsDur",val)}</div><button class="btn pri block" id="dsOk">Einplanen</button>`,
+    sh=>{const get=wireDur(sh,"dsDur"), getDay=dayVal?wireDay(sh,"dsDay"):null;$("#dsOk",sh).addEventListener("click",()=>{const d=get(),k=getDay?getDay():null;closeSheet();fn(d,k);});});
 }
 
 /* Aufgabe einplanen */
@@ -954,18 +1023,26 @@ function openPauseSheet(){
 /* Block bearbeiten */
 function openItemSheet(id){
   const it=planItem(id); if(!it) return;
+  const r0=run(), running=!!(r0&&r0.itemId===id);
   openSheet(it.pause?"Pause bearbeiten":"Block bearbeiten",`
     ${it.pause?"":`<div class="fl"><label for="eTitle">Titel</label><input class="field" id="eTitle" value="${esc(it.title)}"></div>
     <div class="fl"><label for="eFolder">Ordner</label><select class="field" id="eFolder">${folderOptions(it.folderId,true)}</select></div>`}
     <div class="fl"><label>Dauer</label>${durPicker("eDur",it.dur)}</div>
+    ${running?"":`<div class="fl"><label>Tag</label>${dayPicker("eDay",ui.day)}</div>`}
     <div class="fl"><label class="check"><input type="checkbox" id="eFixOn"${it.fixed!=null?" checked":""}> Feste Startzeit</label>
       <input class="field" type="time" id="eFix" value="${it.fixed!=null?hm(it.fixed):hm(sched(ui.day).find(x=>x.it.id===id).s)}" aria-label="Startzeit"></div>
     <div class="sh-row"><button class="btn danger" id="eDel">Löschen</button><button class="btn pri" id="eSave">Speichern</button></div>`,sh=>{
-      const get=wireDur(sh,"eDur");
+      const get=wireDur(sh,"eDur"), getDay=running?null:wireDay(sh,"eDay");
       $("#eFix",sh).addEventListener("input",()=>{$("#eFixOn",sh).checked=true;});
       $("#eSave",sh).addEventListener("click",()=>{
         if(!it.pause){it.title=$("#eTitle",sh).value.trim()||it.title;it.folderId=$("#eFolder",sh).value||null;}
         it.dur=get(); it.fixed=$("#eFixOn",sh).checked&&$("#eFix",sh).value?toMin($("#eFix",sh).value):null;
+        const to=getDay?getDay():ui.day;
+        if(to!==ui.day){
+          const src=dayOf(ui.day,true); src.items=src.items.filter(x=>x.id!==id);
+          if(it.done&&to>todayKey()){it.done=false;it.aStart=null;it.aEnd=null;linkTaskDone(it.taskId,false);}
+          dayOf(to,true).items.push(it); toast("Verschoben auf "+dayShort(to));
+        }
         save("plans"); closeSheet(); render();
       });
       $("#eDel",sh).addEventListener("click",()=>{
