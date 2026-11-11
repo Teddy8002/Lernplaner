@@ -1201,6 +1201,7 @@ let toastT=null;
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),2200);}
 
 init();
+if("serviceWorker" in navigator&&location.protocol==="https:"){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}
 </script>
 </body>
 </html>
