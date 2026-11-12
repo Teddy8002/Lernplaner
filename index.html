@@ -493,7 +493,8 @@ function openSyncSheet(){
       <div class="sh-row"><button class="btn danger" id="syOff">Trennen</button><button class="btn pri" id="syNow">Jetzt abgleichen</button></div>`
     :`<div class="fl"><label for="syTok">GitHub-Token (classic, nur Berechtigung „gist“)</label><input class="field" id="syTok" type="password" autocomplete="off" placeholder="ghp_…"></div>
       <p class="note">Token erstellen: github.com → Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token → nur <b>gist</b> anhaken, Ablauf „No expiration“.</p>
-      <button class="btn pri block" id="syGo">Verbinden</button><p class="note" id="syMsg"></p>`}`,sh=>{
+      <button class="btn pri block" id="syGo">Verbinden</button><p class="note" id="syMsg"></p>`}${importHTML()}`,sh=>{
+    wireImport(sh);
     if(on){
       $("#syNow",sh).onclick=async()=>{dirty=true;await push();await pull();closeSheet();toast("Abgeglichen");};
       $("#syOff",sh).onclick=()=>{cfg.token=null;cfg.gistId=null;lsSet("cfg",cfg);setSync("off");closeSheet();};
@@ -508,6 +509,59 @@ function openSyncSheet(){
   });
 }
 document.addEventListener("click",e=>{if(e.target.closest(".syncbtn"))openSyncSheet();});
+/* ---------- Plan-Import (JSON einfügen oder Link mit #import=…) ---------- */
+function importHTML(){
+  return `<hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+    <div class="fl"><label for="imTxt">Plan importieren (JSON)</label><textarea class="field" id="imTxt" placeholder='{"date":"2026-11-13","start":"14:30","items":[{"title":"…","folder":"an1","dur":60}]}' autocomplete="off" autocapitalize="off" spellcheck="false"></textarea></div>
+    <button class="btn block" id="imGo" type="button">Importieren</button>`;
+}
+function wireImport(sh){
+  const b=$("#imGo",sh); if(!b) return;
+  b.onclick=()=>{const v=$("#imTxt",sh).value.trim(); if(!v) return; closeSheet(); showImport(v);};
+}
+function parseImport(raw){
+  const o=typeof raw==="string"?JSON.parse(raw):raw;
+  if(!o||!/^\d{4}-\d{2}-\d{2}$/.test(o.date)||!Array.isArray(o.items)||!o.items.length) throw new Error("format");
+  const items=o.items.map(x=>{
+    const dur=Math.round(Number(x&&x.dur));
+    if(!x||!x.title||!(dur>0)) throw new Error("format");
+    const pause=!!x.pause;
+    return {title:String(x.title).slice(0,120),folderId:pause?null:(x.folder&&folder(x.folder)?x.folder:null),dur,pause};
+  });
+  const start=/^\d{1,2}:\d{2}$/.test(o.start||"")?o.start.replace(/^(\d):/,"0$1:"):null;
+  return {date:o.date,start,items};
+}
+function applyImport(p){
+  const day=dayOf(p.date,true);
+  if(p.start&&!day.items.length) day.start=p.start;
+  let n=0;
+  p.items.forEach(i=>{
+    if(day.items.some(x=>x.title===i.title&&x.dur===i.dur)) return; // Doppel-Import vermeiden
+    day.items.push({id:uid(),title:i.title,folderId:i.folderId,dur:i.dur,done:false,fixed:null,aStart:null,aEnd:null,taskId:null,pause:i.pause}); n++;
+  });
+  save("plans"); ui.day=p.date;
+  if(location.hash!=="#heute") location.hash="#heute"; else render();
+  toast(n?`${n} Block${n>1?"e":""} eingeplant`:"Schon eingeplant");
+}
+function showImport(raw){
+  let p; try{p=parseImport(raw);}catch(e){toast("Import: ungültiges Format");return;}
+  const total=p.items.reduce((a,i)=>a+i.dur,0);
+  openSheet("Plan importieren",`
+    <p class="note">${esc(keyDate(p.date).toLocaleDateString("de-CH",{weekday:"long",day:"numeric",month:"long"}))}${p.start?` · Start ${esc(p.start)}`:""} · ${esc(fmtDur(total))}</p>
+    <ul class="flist">${p.items.map(i=>`<li class="note">${esc(i.title)} · ${esc(fmtDur(i.dur))}</li>`).join("")}</ul>
+    <div class="sh-row"><button class="btn" data-close>Abbrechen</button><button class="btn pri" id="imOk">Einplanen</button></div>`,
+    sh=>{$("#imOk",sh).onclick=()=>{closeSheet();applyImport(p);};});
+}
+function checkImportHash(){
+  const m=(location.hash||"").match(/^#import=([A-Za-z0-9_-]+)/); if(!m) return false;
+  history.replaceState(null,"",location.pathname+location.search+"#heute");
+  try{
+    const b=m[1].replace(/-/g,"+").replace(/_/g,"/");
+    showImport(new TextDecoder().decode(Uint8Array.from(atob(b),c=>c.charCodeAt(0))));
+  }catch(e){toast("Import: Link ungültig");}
+  return true;
+}
+window.addEventListener("hashchange",checkImportHash);
 /* Offene Aufgaben früherer Tage automatisch auf heute übernehmen */
 function autoCarry(){
   if(!S.plans||!S.plans.days) return false;
@@ -534,6 +588,7 @@ async function init(){
   normalize(); autoCarry(); mode="local"; syncState=cfg.token&&cfg.gistId?"busy":"off";
   render();
   if(cfg.token&&cfg.gistId) await pull();
+  checkImportHash();
   setInterval(()=>{if(!document.hidden){autoCarry();pull();}},30000);
   document.addEventListener("visibilitychange",()=>{if(document.hidden){if(dirty)push();}else{autoCarry();pull();}});
 }
