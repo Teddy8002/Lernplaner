@@ -458,7 +458,7 @@ async function pull(){
     const remote=JSON.parse(txt||"{}"); let changed=false, localNewer=false;
     DOCS.forEach(n=>{const rd=remote[n]; if(!rd||!rd.d) {if(S[n]) localNewer=true; return;}
       if((rd.t||0)>(stamp[n]||0)){S[n]=rd.d;stamp[n]=rd.t;changed=true;} else if((rd.t||0)<(stamp[n]||0)) localNewer=true;});
-    normalize();
+    normalize(); autoCarry();
     if(changed){persistLocal();requestRender();}
     if(localNewer){dirty=true;push();}
     setSync("ok");
@@ -508,15 +508,34 @@ function openSyncSheet(){
   });
 }
 document.addEventListener("click",e=>{if(e.target.closest(".syncbtn"))openSyncSheet();});
+/* Offene Aufgaben früherer Tage automatisch auf heute übernehmen */
+function autoCarry(){
+  if(!S.plans||!S.plans.days) return false;
+  const t=todayKey(), r=run(), open=[];
+  for(const k of Object.keys(S.plans.days).filter(x=>x<t).sort()){
+    const d=S.plans.days[k];
+    const keep=[];
+    for(const i of d.items){
+      const active=r&&r.date===k&&r.itemId===i.id;
+      if(i.done||i.pause||active) keep.push(i); else open.push(i);
+    }
+    d.items=keep;
+  }
+  if(!open.length) return false;
+  const today=dayOf(t,true), have=new Set(today.items.map(i=>i.id));
+  open.forEach(i=>{if(have.has(i.id)) return; i.fixed=null; today.items.push(i);});
+  save("plans"); requestRender();
+  return true;
+}
 async function init(){
   DOCS.forEach(n=>S[n]=lsGet(n)); Object.assign(stamp,lsGet("stamp")||{});
   Object.assign(cfg,lsGet("cfg")||{});
   if(!S.meta){const sd=seedData();DOCS.forEach(n=>{S[n]=sd[n];stamp[n]=1;});persistLocal();}
-  normalize(); mode="local"; syncState=cfg.token&&cfg.gistId?"busy":"off";
+  normalize(); autoCarry(); mode="local"; syncState=cfg.token&&cfg.gistId?"busy":"off";
   render();
   if(cfg.token&&cfg.gistId) await pull();
-  setInterval(()=>{if(!document.hidden)pull();},30000);
-  document.addEventListener("visibilitychange",()=>{if(document.hidden){if(dirty)push();}else pull();});
+  setInterval(()=>{if(!document.hidden){autoCarry();pull();}},30000);
+  document.addEventListener("visibilitychange",()=>{if(document.hidden){if(dirty)push();}else{autoCarry();pull();}});
 }
 /* ================= Model helpers ================= */
 const folder=id=>S.meta.folders.find(f=>f.id===id);
